@@ -1,20 +1,22 @@
 from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from ..mock_database import *
 import os
+
+from ..mock_database.mock_database import check_auth
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 jwt = JWTManager(app)
 
-
 @app.route('/login', methods=['POST'])
-def login():
+def login(conn):
     username = request.json.get('username', None)
     password = request.json.get('password', None)
     # Validate username and password against our database WE DONT HAVE ONE
     if username != 'admin' or password != 'password':
         return jsonify({"msg": "Bad username or password"}), 401
-
+    check_auth(conn , username , password)
     # Create a new token with the user id inside
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token)
