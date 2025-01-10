@@ -27,16 +27,40 @@ def create_tables(conn):
     ''')
     conn.commit()
 
+
+def print_all_tables(conn):
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = cursor.fetchall()
+
+    for table_name in tables:
+        print(f"shit in the table {table_name[0]}:")
+        cursor.execute(f"SELECT * FROM {table_name[0]}")
+        columns = [description[0] for description in cursor.description]
+        print("\t" + ", ".join(columns)) # show the headers
+        rows = cursor.fetchall()
+        for row in rows:
+            print("\t" + ", ".join(map(str, row)))
+        print()
+
+
 # Auth helpers
 def insert_auth(conn, data):
     cursor = conn.cursor()
     cursor.execute('INSERT INTO auth (username, password) VALUES (?, ?)', (data['username'], data['password']))
     conn.commit()
 
-def read_auth(conn, user_id):
+def read_auth_by_id(conn, user_id):
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM auth WHERE id=?', (user_id,))
     return cursor.fetchone()
+
+def read_auth_by_username(conn, username):
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM auth WHERE username=?', (username,))
+    return cursor.fetchone()
+
 
 def delete_auth(conn, user_id):
     cursor = conn.cursor()
