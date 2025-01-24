@@ -25,6 +25,15 @@ def create_tables():
                 FOREIGN KEY (user_id) REFERENCES auth (id)
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS wallets (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                wallet_address TEXT NOT NULL,
+                wallet_private_key TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES auth (id)
+            )
+        ''')
         conn.commit()
     finally:
         conn.close()
@@ -54,6 +63,7 @@ def insert_auth(username, password):
         cursor = conn.cursor()
         cursor.execute('INSERT INTO auth (username, password) VALUES (?, ?)', (username, password))
         conn.commit()
+        return cursor.lastrowid  # Return the ID of the newly created user
     finally:
         conn.close()
 
@@ -117,6 +127,18 @@ def delete_payment_request(request_id):
     try:
         cursor = conn.cursor()
         cursor.execute('DELETE FROM payment_requests WHERE id=?', (request_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+def insert_wallet(user_id, wallet_address, wallet_private_key):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO wallets (user_id, wallet_address, wallet_private_key) 
+            VALUES (?, ?, ?)
+        ''', (user_id, wallet_address, wallet_private_key))
         conn.commit()
     finally:
         conn.close()
