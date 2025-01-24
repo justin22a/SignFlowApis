@@ -11,6 +11,6 @@ The structure is mostly divided into /app and /tests. /app will have a few direc
 - settlement.py, payment_request.py, and payment_verification.py all use payment_service.py
 
 ## Usage
+- To install required packages: `pip install -r requirements.txt`
 - To hit local endpoints: http://0.0.0.0:5000/
 - To create mock DB run: `Test_anything.py`
-
