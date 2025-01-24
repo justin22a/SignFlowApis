@@ -11,10 +11,19 @@ auth = Blueprint('auth', __name__)
 @auth.route('/test_auth', methods=['GET', 'POST'])
 def test_auth():
     print("test auth is working wooshooo")
-    return "Test auth is working now"
+    return jsonify(message="Test auth is working now"), 200
 
+@auth.route('/delete_user_auth', methods=['POST'])
+def delete_user_auth():
+    user_to_delete = request.json.get('username')
+    password = request.json.get('password')
 
+    if not check_auth(user_to_delete , password):
+        return jsonify(message="Invalid username or password"), 401
 
+    delete_auth_by_username(user_to_delete)
+
+    return jsonify(message="User deleted successfully"), 200
 
 @auth.route('/login', methods=['POST'])
 def login():
@@ -48,8 +57,7 @@ def register():
     # check if either are null
     if not username or not password:
         return jsonify({"msg": "Missing username or password"}), 400
-    # check if they already exist? if so return failure
-    if check_auth(username, password):
+    if check_auth(username, password):  # This checks if user exists
         return jsonify({"msg": "User already exists"}), 409
 
     # Insert new user into the database

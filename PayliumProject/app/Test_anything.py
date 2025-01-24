@@ -2,8 +2,10 @@ import os
 from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager
 from PayliumProject.app.mock_database.mock_database import *
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'  # Set this to your actual secret key
 jwt = JWTManager(app)
 
@@ -25,5 +27,4 @@ def test():
 
 if __name__ == '__main__':
     create_tables()
-    print_all_tables()
     app.run(debug=True)

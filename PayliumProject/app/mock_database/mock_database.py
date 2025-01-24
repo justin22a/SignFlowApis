@@ -67,6 +67,16 @@ def insert_auth(username, password):
     finally:
         conn.close()
 
+def delete_auth_by_username(username):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM auth WHERE username=?', (username,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def read_auth_by_id(user_id):
     conn = get_db_connection()
     try:
