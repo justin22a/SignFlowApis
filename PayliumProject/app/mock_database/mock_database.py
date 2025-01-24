@@ -71,10 +71,21 @@ def delete_auth_by_username(username):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM auth WHERE username=?', (username,))
-        conn.commit()
+        # First, get the user ID associated with the username
+        cursor.execute('SELECT id FROM auth WHERE username=?', (username,))
+        user_id = cursor.fetchone()
+        if user_id:
+            user_id = user_id[0]
+            # Delete the wallet associated with this user ID
+            cursor.execute('DELETE FROM wallets WHERE user_id=?', (user_id,))
+            # Then delete the user from the auth table
+            cursor.execute('DELETE FROM auth WHERE id=?', (user_id,))
+            conn.commit()
+        else:
+            print("No user found with that username.")
     finally:
         conn.close()
+
 
 
 def read_auth_by_id(user_id):
@@ -95,14 +106,6 @@ def read_auth_by_username(username):
     finally:
         conn.close()
 
-def delete_auth(user_id):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM auth WHERE id=?', (user_id,))
-        conn.commit()
-    finally:
-        conn.close()
 
 def check_auth(username, password):
     conn = get_db_connection()
