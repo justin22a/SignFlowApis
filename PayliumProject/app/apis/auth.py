@@ -3,7 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from eth_account import Account
 
 from PayliumProject.app.mock_database.mock_database import check_auth, insert_auth, insert_wallet, \
-    delete_auth_by_username
+    delete_auth_by_username, read_auth_by_username
 
 # Creating a blueprint for authentication
 auth = Blueprint('auth', __name__)
@@ -37,7 +37,12 @@ def login():
         return jsonify({"msg": "Invalid credentials"}), 401
 
     # for actual http
-    access_token = create_access_token(identity=username)
+    # Retrieve the user's ID from the database based on the username
+    user = read_auth_by_username(username)  # A function to fetch user details from the DB
+    user_id = user[0]  # Replace with the correct field name
+
+    # Use user_id as the identity in the token
+    access_token = create_access_token(identity=user_id)
     return jsonify(access_token=access_token), 200
 
 
@@ -62,7 +67,7 @@ def register():
         return jsonify({"msg": "User already exists"}), 409
 
     # Insert new user into the database
-    user_id = insert_auth(username, password)  # Assuming this returns the new user's ID
+    user_id = insert_auth(username, password)
 
     # Generate a new Ethereum wallet
     account = Account.create()
