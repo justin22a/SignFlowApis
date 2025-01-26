@@ -7,11 +7,15 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 app.config['JWT_SECRET_KEY'] = 'your_jwt_secret_key'  # Set this to your actual secret key
+app.config["JWT_VERIFY_SUB"]=False
 jwt = JWTManager(app)
 
 # Import and register the auth blueprint
 from PayliumProject.app.apis.auth import auth as auth_blueprint
 app.register_blueprint(auth_blueprint, url_prefix='/auth')
+
+from PayliumProject.app.apis.payment_request import payment as payment_blueprint
+app.register_blueprint(payment_blueprint, url_prefix='/payment')
 
 @app.route('/', methods=['GET', 'POST'])
 def home():

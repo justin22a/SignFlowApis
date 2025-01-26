@@ -22,6 +22,7 @@ def create_tables():
                 user_id INTEGER NOT NULL,
                 amount REAL NOT NULL,
                 currency TEXT NOT NULL,
+                status TEXT NOT NULL,
                 FOREIGN KEY (user_id) REFERENCES auth (id)
             )
         ''')
@@ -117,11 +118,11 @@ def check_auth(username, password):
     finally:
         conn.close()
 
-def insert_payment_request(user_id, amount, currency):
+def insert_payment_request(user_id, amount, currency, status):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO payment_requests (user_id, amount, currency) VALUES (?, ?, ?)', (user_id, amount, currency))
+        cursor.execute('INSERT INTO payment_requests (user_id, amount, currency, status) VALUES (?, ?, ?, ?)', (user_id, amount, currency, status))
         conn.commit()
     finally:
         conn.close()

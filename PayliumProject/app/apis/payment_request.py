@@ -5,17 +5,15 @@
 # Validate payment request data
 # Record payment requests in the database
 # Initiate payment processing (may interact with external payment gateways or blockchain networks)
-from urllib import request
 
-from flask import Flask, jsonify
+from flask import jsonify, Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from PayliumProject.app.Test_anything import *
+from PayliumProject.app.mock_database.mock_database import insert_payment_request
 
-app = Flask(__name__)
+payment = Blueprint('payment', __name__)
 
-
-@app.route('/payment/make_request', methods=['POST'])
+@payment.route('/make_request', methods=['POST'])
 @jwt_required()  # Ensure that only authenticated users can make a payment request
 def create_payment_request():
     try:
@@ -23,16 +21,19 @@ def create_payment_request():
         amount = data['amount']
         currency = data['currency']
         user_id = get_jwt_identity()  # assuming that the JWT token includes user identity
+        print(f"user_id from JWT: {user_id}")
+        status = 'PENDING'
 
         # make sure that there exists valid parameters
         if not amount or not currency:
             return jsonify({"error": "Invalid data provided"}), 400
-
+        # add payment request to DB
+        insert_payment_request(user_id, amount, currency, status)
         # Logic to handle the creation of the payment request
         # This could involve saving the request to a database and/or initiating a transaction process
-        payment_id = process_payment_request(user_id, amount, currency)
+        # payment_id = process_payment_request(user_id, amount, currency)
 
-        return jsonify({"message": "Payment request created successfully", "payment_id": payment_id}), 201
+        return jsonify({"message": "Payment request created successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -48,7 +49,7 @@ def process_payment_request(user_id, amount, currency):
 
 
 # Example of a send below to the endpoint
-# fetch('http://yourserver.com/api/payment/request', {
+# fetch('http://yourserver.com/payment/make_request', {
 #     method: 'POST',
 #     headers: {
 #         'Content-Type': 'application/json',
