@@ -27,7 +27,10 @@ def home():
 
 @app.route('/test', methods=['GET'])
 def test():
-    return jsonify(message="Test route working"), 200
+    data = request.json
+    username = data['username']
+    print(username)
+    return jsonify(read_auth_by_username(username)), 200
 
 if __name__ == '__main__':
     create_tables()

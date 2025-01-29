@@ -9,41 +9,57 @@
 from flask import jsonify, Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from PayliumProject.app.mock_database.mock_database import insert_payment_request
+from PayliumProject.app.mock_database.mock_database import insert_payment_request, read_auth_by_username, \
+    get_user_id_by_username, delete_payment_request_by_id
 
 payment = Blueprint('payment', __name__)
 
 @payment.route('/make_request', methods=['POST'])
-@jwt_required()  # Ensure that only authenticated users can make a payment request
+# @jwt_required()  # Ensure that only authenticated users can make a payment request
 def create_payment_request():
     try:
         data = request.get_json()
         amount = data['amount']
         currency = data['currency']
-        user_id = get_jwt_identity()  # assuming that the JWT token includes user identity
-        print(f"user_id from JWT: {user_id}")
+        receiver_username = data['receiver']
+        sender_username = data['sender']
         status = 'PENDING'
+        if sender_username == receiver_username:
+            return jsonify({"error" : "Cannot send to self"}) , 401
+        # Validate sender and receiver existence in the database
+        sender_id = get_user_id_by_username(sender_username)
+        if sender_id is None:
+            return jsonify({"error": f"User {sender_username} does not exist, this is not a valid sender"}), 401
 
-        # make sure that there exists valid parameters
+        receiver_id = get_user_id_by_username(receiver_username)
+        if receiver_id is None:
+            return jsonify({"error": f"User {receiver_username} does not exist, cannot send to them"}), 401
+
+        # Validate that the required parameters are provided
         if not amount or not currency:
             return jsonify({"error": "Invalid data provided"}), 400
-        # add payment request to DB
-        insert_payment_request(user_id, amount, currency, status)
-        # Logic to handle the creation of the payment request
-        # This could involve saving the request to a database and/or initiating a transaction process
-        # payment_id = process_payment_request(user_id, amount, currency)
+
+        # Add the payment request to the database
+        insert_payment_request(sender_id, receiver_id, amount, currency, status)
 
         return jsonify({"message": "Payment request created successfully"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-def process_payment_request(user_id, amount, currency):
-    # HERE we might want to consider saving the request in a database and initiating the payment
-        # do we use a message queue to preserve an ordering of requests
-    # For example, save to a database
-    # Return a unique payment ID or transaction ID
-    return "unique_payment_id_12345"
+@payment.route('/delete_request/', methods=['DELETE'])
+# @jwt_required()  # Uncomment this to enable JWT authentication
+def delete_payment_request():
+    try:
+        data = request.get_json()
+        request_id = data['request_id']
+        success = delete_payment_request_by_id(request_id)
+        if not success:
+            return jsonify({'error': 'Payment request not found or already deleted'}), 404
+        return jsonify({'message': 'Payment request deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 
 

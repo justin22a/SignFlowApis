@@ -14,7 +14,7 @@ def test_auth():
     print("test auth is working wooshooo")
     return jsonify(message="Test auth is working now"), 200
 
-@auth.route('/delete_user_auth', methods=['POST'])
+@auth.route('/delete_user_auth', methods=['DELETE'])
 def delete_user_auth():
     user_to_delete = request.json.get('username')
     password = request.json.get('password')

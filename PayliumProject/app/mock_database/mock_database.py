@@ -4,11 +4,13 @@ def get_db_connection(db_path='test.db'):
     """ Create a new database connection """
     return sqlite3.connect(db_path, check_same_thread=False)
 
+
 def create_tables():
     conn = get_db_connection()
     print("Creating tables...")
     try:
         cursor = conn.cursor()
+        # Create auth table if not exists
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS auth (
                 id INTEGER PRIMARY KEY,
@@ -16,16 +18,29 @@ def create_tables():
                 password TEXT NOT NULL
             )
         ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS payment_requests (
-                id INTEGER PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                currency TEXT NOT NULL,
-                status TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES auth (id)
-            )
-        ''')
+
+        # Check if payment_requests table exists and has the required columns
+        cursor.execute("PRAGMA table_info(payment_requests)")
+        columns = [row[1] for row in cursor.fetchall()]  # get column names
+
+        if 'payment_requests' not in columns:
+            # If table does not exist or requires additional columns
+            cursor.execute(
+                'DROP TABLE IF EXISTS payment_requests')  # Consider not dropping if data preservation is needed
+            cursor.execute('''
+                CREATE TABLE payment_requests (
+                    id INTEGER PRIMARY KEY,
+                    sender_id INTEGER NOT NULL,
+                    receiver_id INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    currency TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    FOREIGN KEY (sender_id) REFERENCES auth (id),
+                    FOREIGN KEY (receiver_id) REFERENCES auth (id)
+                )
+            ''')
+
+        # Create wallets table if not exists
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS wallets (
                 id INTEGER PRIMARY KEY,
@@ -38,6 +53,7 @@ def create_tables():
         conn.commit()
     finally:
         conn.close()
+
 
 def print_all_tables():
     conn = get_db_connection()
@@ -118,14 +134,18 @@ def check_auth(username, password):
     finally:
         conn.close()
 
-def insert_payment_request(user_id, amount, currency, status):
+def insert_payment_request(sender_id, receiver_id, amount, currency, status):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO payment_requests (user_id, amount, currency, status) VALUES (?, ?, ?, ?)', (user_id, amount, currency, status))
+        cursor.execute('''
+            INSERT INTO payment_requests (sender_id, receiver_id, amount, currency, status) 
+            VALUES (?, ?, ?, ?, ?)
+        ''', (sender_id, receiver_id, amount, currency, status))
         conn.commit()
     finally:
         conn.close()
+
 
 def read_payment_request(request_id):
     conn = get_db_connection()
@@ -156,3 +176,29 @@ def insert_wallet(user_id, wallet_address, wallet_private_key):
         conn.commit()
     finally:
         conn.close()
+
+def get_user_id_by_username(username):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM auth WHERE username=?', (username,))
+        result = cursor.fetchone()
+        if result:
+            return result[0]  # Return the user ID
+        else:
+            return None  # Return None if no user is found with that username
+    finally:
+        conn.close()
+
+def delete_payment_request_by_id(request_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM payment_requests WHERE id=?', (request_id,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            return False  # No rows were deleted, indicating the ID was not found
+        return True
+    finally:
+        conn.close()
+
