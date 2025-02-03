@@ -18,28 +18,6 @@ def create_tables():
                 password TEXT NOT NULL
             )
         ''')
-
-        # Check if payment_requests table exists and has the required columns
-        cursor.execute("PRAGMA table_info(payment_requests)")
-        columns = [row[1] for row in cursor.fetchall()]  # get column names
-
-        if 'payment_requests' not in columns:
-            # If table does not exist or requires additional columns
-            cursor.execute(
-                'DROP TABLE IF EXISTS payment_requests')  # Consider not dropping if data preservation is needed
-            cursor.execute('''
-                CREATE TABLE payment_requests (
-                    id INTEGER PRIMARY KEY,
-                    sender_id INTEGER NOT NULL,
-                    receiver_id INTEGER NOT NULL,
-                    amount REAL NOT NULL,
-                    currency TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    FOREIGN KEY (sender_id) REFERENCES auth (id),
-                    FOREIGN KEY (receiver_id) REFERENCES auth (id)
-                )
-            ''')
-
         # Create wallets table if not exists
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS wallets (
@@ -50,10 +28,33 @@ def create_tables():
                 FOREIGN KEY (user_id) REFERENCES auth (id)
             )
         ''')
+        # Create wallet funds table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS wallet_funds (
+                id INTEGER PRIMARY KEY,
+                wallet_id INTEGER NOT NULL,
+                balance REAL NOT NULL DEFAULT 0,
+                currency TEXT NOT NULL,
+                FOREIGN KEY (wallet_id) REFERENCES wallets(id)
+            )
+        ''')
+        # Create payment_requests table if not exists
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS payment_requests (notion
+            
+                id INTEGER PRIMARY KEY,
+                sender_id INTEGER NOT NULL,
+                receiver_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                currency TEXT NOT NULL,
+                status TEXT NOT NULL,
+                FOREIGN KEY (sender_id) REFERENCES auth (id),
+                FOREIGN KEY (receiver_id) REFERENCES auth (id)
+            )
+        ''')
         conn.commit()
     finally:
         conn.close()
-
 
 def print_all_tables():
     conn = get_db_connection()
@@ -202,3 +203,42 @@ def delete_payment_request_by_id(request_id):
     finally:
         conn.close()
 
+
+def insert_wallet_funds(wallet_id, balance, currency):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO wallet_funds (wallet_id, balance, currency) 
+            VALUES (?, ?, ?)
+        ''', (wallet_id, balance, currency))
+        conn.commit()
+    finally:
+        conn.close()
+
+def update_wallet_funds(wallet_id, new_balance):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE wallet_funds SET balance = ? WHERE wallet_id = ?', (new_balance, wallet_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+def get_wallet_funds(wallet_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT balance, currency FROM wallet_funds WHERE wallet_id = ?', (wallet_id,))
+        return cursor.fetchone()
+    finally:
+        conn.close()
+
+def delete_wallet_funds(wallet_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM wallet_funds WHERE wallet_id = ?', (wallet_id,))
+        conn.commit()
+    finally:
+        conn.close()
