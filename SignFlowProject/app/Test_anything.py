@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager
-from PayliumProject.app.mock_database.mock_database import *
+from SignFlowProject.app.mock_database.mock_database import *
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -11,10 +11,10 @@ app.config["JWT_VERIFY_SUB"]=False
 jwt = JWTManager(app)
 
 # Import and register the auth blueprint
-from PayliumProject.app.apis.auth import auth as auth_blueprint
+from SignFlowProject.app.apis.auth import auth as auth_blueprint
 app.register_blueprint(auth_blueprint, url_prefix='/auth')
 
-from PayliumProject.app.apis.payment_request import payment as payment_blueprint
+from SignFlowProject.app.apis.payment_request import payment as payment_blueprint
 app.register_blueprint(payment_blueprint, url_prefix='/payment')
 
 @app.route('/', methods=['GET', 'POST'])
