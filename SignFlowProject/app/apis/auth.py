@@ -2,8 +2,8 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from eth_account import Account
 
-from SignFlowProject.app.mock_database.mock_database import check_auth, insert_auth, insert_wallet, \
-    delete_auth_by_username, read_auth_by_username
+from SignFlowProject.app.mock_database.mock_database import check_auth, insert_auth, delete_auth_by_username, \
+    read_auth_by_username
 
 # Creating a blueprint for authentication
 auth = Blueprint('auth', __name__)
@@ -69,12 +69,5 @@ def register():
     # Insert new user into the database
     user_id = insert_auth(username, password)
 
-    # Generate a new Ethereum wallet
-    account = Account.create()
-    wallet_address = account.address
-    wallet_private_key = account.key.hex()
 
-    # Insert the wallet linked to the new user
-    insert_wallet(user_id, wallet_address, wallet_private_key)
-
-    return jsonify({"msg": "User registered successfully", "wallet_address": wallet_address}), 201
+    return jsonify({"msg": "User registered successfully"}), 201

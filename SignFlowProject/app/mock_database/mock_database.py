@@ -1,9 +1,9 @@
 import sqlite3
+import json
 
 def get_db_connection(db_path='test.db'):
     """ Create a new database connection """
     return sqlite3.connect(db_path, check_same_thread=False)
-
 
 def create_tables():
     conn = get_db_connection()
@@ -13,43 +13,17 @@ def create_tables():
         # Create auth table if not exists
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS auth (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
                 password TEXT NOT NULL
             )
         ''')
-        # Create wallets table if not exists
+        # Create user_data table if not exists
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS wallets (
-                id INTEGER PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                wallet_address TEXT NOT NULL,
-                wallet_private_key TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES auth (id)
-            )
-        ''')
-        # Create wallet funds table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS wallet_funds (
-                id INTEGER PRIMARY KEY,
-                wallet_id INTEGER NOT NULL,
-                balance REAL NOT NULL DEFAULT 0,
-                currency TEXT NOT NULL,
-                FOREIGN KEY (wallet_id) REFERENCES wallets(id)
-            )
-        ''')
-        # Create payment_requests table if not exists
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS payment_requests (notion
-            
-                id INTEGER PRIMARY KEY,
-                sender_id INTEGER NOT NULL,
-                receiver_id INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                currency TEXT NOT NULL,
-                status TEXT NOT NULL,
-                FOREIGN KEY (sender_id) REFERENCES auth (id),
-                FOREIGN KEY (receiver_id) REFERENCES auth (id)
+            CREATE TABLE IF NOT EXISTS user_data (
+                user_id INTEGER,
+                data TEXT,
+                FOREIGN KEY(user_id) REFERENCES auth(id)
             )
         ''')
         conn.commit()
@@ -85,17 +59,51 @@ def insert_auth(username, password):
     finally:
         conn.close()
 
+def read_user_data(user_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT data FROM user_data WHERE user_id=?', (user_id,))
+        data = cursor.fetchone()
+        return json.loads(data[0]) if data else None  # Convert JSON string back to Python dictionary
+    finally:
+        conn.close()
+
+def upsert_user_data(user_id, data):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        json_data = json.dumps(data)  # Convert Python dictionary to JSON string
+        # Use INSERT OR REPLACE to handle both new insertions and updates
+        cursor.execute('''
+            INSERT OR REPLACE INTO user_data (user_id, data)
+            VALUES (?, ?)
+        ''', (user_id, json_data))
+        conn.commit()
+    finally:
+        conn.close()
+
+def delete_user_data(user_id):
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM user_data WHERE user_id=?', (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+# Example functions to interact with the authentication system
+
 def delete_auth_by_username(username):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        # First, get the user ID associated with the username
         cursor.execute('SELECT id FROM auth WHERE username=?', (username,))
         user_id = cursor.fetchone()
         if user_id:
             user_id = user_id[0]
-            # Delete the wallet associated with this user ID
-            cursor.execute('DELETE FROM wallets WHERE user_id=?', (user_id,))
+            # Delete the user data associated with this user ID
+            delete_user_data(user_id)
             # Then delete the user from the auth table
             cursor.execute('DELETE FROM auth WHERE id=?', (user_id,))
             conn.commit()
@@ -103,27 +111,6 @@ def delete_auth_by_username(username):
             print("No user found with that username.")
     finally:
         conn.close()
-
-
-
-def read_auth_by_id(user_id):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM auth WHERE id=?', (user_id,))
-        return cursor.fetchone()
-    finally:
-        conn.close()
-
-def read_auth_by_username(username):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM auth WHERE username=?', (username,))
-        return cursor.fetchone()
-    finally:
-        conn.close()
-
 
 def check_auth(username, password):
     conn = get_db_connection()
@@ -135,110 +122,12 @@ def check_auth(username, password):
     finally:
         conn.close()
 
-def insert_payment_request(sender_id, receiver_id, amount, currency, status):
+
+def read_auth_by_username(username):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO payment_requests (sender_id, receiver_id, amount, currency, status) 
-            VALUES (?, ?, ?, ?, ?)
-        ''', (sender_id, receiver_id, amount, currency, status))
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def read_payment_request(request_id):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM payment_requests WHERE id=?', (request_id,))
+        cursor.execute('SELECT * FROM auth WHERE username=?', (username,))
         return cursor.fetchone()
-    finally:
-        conn.close()
-
-def delete_payment_request(request_id):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM payment_requests WHERE id=?', (request_id,))
-        conn.commit()
-    finally:
-        conn.close()
-
-def insert_wallet(user_id, wallet_address, wallet_private_key):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO wallets (user_id, wallet_address, wallet_private_key) 
-            VALUES (?, ?, ?)
-        ''', (user_id, wallet_address, wallet_private_key))
-        conn.commit()
-    finally:
-        conn.close()
-
-def get_user_id_by_username(username):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('SELECT id FROM auth WHERE username=?', (username,))
-        result = cursor.fetchone()
-        if result:
-            return result[0]  # Return the user ID
-        else:
-            return None  # Return None if no user is found with that username
-    finally:
-        conn.close()
-
-def delete_payment_request_by_id(request_id):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM payment_requests WHERE id=?', (request_id,))
-        conn.commit()
-        if cursor.rowcount == 0:
-            return False  # No rows were deleted, indicating the ID was not found
-        return True
-    finally:
-        conn.close()
-
-
-def insert_wallet_funds(wallet_id, balance, currency):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO wallet_funds (wallet_id, balance, currency) 
-            VALUES (?, ?, ?)
-        ''', (wallet_id, balance, currency))
-        conn.commit()
-    finally:
-        conn.close()
-
-def update_wallet_funds(wallet_id, new_balance):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('UPDATE wallet_funds SET balance = ? WHERE wallet_id = ?', (new_balance, wallet_id))
-        conn.commit()
-    finally:
-        conn.close()
-
-def get_wallet_funds(wallet_id):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('SELECT balance, currency FROM wallet_funds WHERE wallet_id = ?', (wallet_id,))
-        return cursor.fetchone()
-    finally:
-        conn.close()
-
-def delete_wallet_funds(wallet_id):
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM wallet_funds WHERE wallet_id = ?', (wallet_id,))
-        conn.commit()
     finally:
         conn.close()
