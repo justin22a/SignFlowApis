@@ -21,10 +21,11 @@ def create_tables():
         # Create user_data table if not exists
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS user_data (
-                user_id INTEGER,
+                user_id INTEGER PRIMARY KEY,
                 data TEXT,
                 FOREIGN KEY(user_id) REFERENCES auth(id)
-            )
+            );
+            
         ''')
         conn.commit()
     finally:
@@ -49,15 +50,25 @@ def print_all_tables():
     finally:
         conn.close()
 
+
 def insert_auth(username, password):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
+        # Insert new auth entry
         cursor.execute('INSERT INTO auth (username, password) VALUES (?, ?)', (username, password))
+        user_id = cursor.lastrowid  # Get the ID of the newly created user
         conn.commit()
-        return cursor.lastrowid  # Return the ID of the newly created user
+
+        # Insert corresponding entry in user_data with default or empty data
+        default_data = json.dumps({})  # Default empty JSON object
+        cursor.execute('INSERT INTO user_data (user_id, data) VALUES (?, ?)', (user_id, default_data))
+        conn.commit()
+
+        return user_id  # Return the ID of the newly created user
     finally:
         conn.close()
+
 
 def read_user_data(user_id):
     conn = get_db_connection()
@@ -69,19 +80,29 @@ def read_user_data(user_id):
     finally:
         conn.close()
 
+
+
 def upsert_user_data(user_id, data):
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
         json_data = json.dumps(data)  # Convert Python dictionary to JSON string
-        # Use INSERT OR REPLACE to handle both new insertions and updates
-        cursor.execute('''
-            INSERT OR REPLACE INTO user_data (user_id, data)
-            VALUES (?, ?)
-        ''', (user_id, json_data))
+
+        # Check if the user_data already exists for the user_id
+        cursor.execute('SELECT EXISTS(SELECT 1 FROM user_data WHERE user_id=?)', (user_id,))
+        exists = cursor.fetchone()[0]
+
+        if exists:
+            # Update the existing data
+            cursor.execute('UPDATE user_data SET data=? WHERE user_id=?', (json_data, user_id))
+        else:
+            # Insert new data as no existing data found
+            cursor.execute('INSERT INTO user_data (user_id, data) VALUES (?, ?)', (user_id, json_data))
+
         conn.commit()
     finally:
         conn.close()
+
 
 def delete_user_data(user_id):
     conn = get_db_connection()
@@ -129,5 +150,29 @@ def read_auth_by_username(username):
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM auth WHERE username=?', (username,))
         return cursor.fetchone()
+    finally:
+        conn.close()
+
+
+def clear_user_data(user_id):
+    """ Clears the data for a specific user in the user_data table """
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        # Set the data field to an empty JSON object
+        cursor.execute('UPDATE user_data SET data = ? WHERE user_id = ?', (json.dumps({}), user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_all_user_data():
+    """ Deletes all entries from the user_data table """
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        # Delete all records from user_data table
+        cursor.execute('DELETE FROM user_data')
+        conn.commit()
     finally:
         conn.close()

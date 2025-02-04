@@ -67,7 +67,7 @@ def register():
         return jsonify({"msg": "User already exists"}), 409
 
     # Insert new user into the database
-    user_id = insert_auth(username, password)
+    insert_auth(username, password)
 
 
     return jsonify({"msg": "User registered successfully"}), 201
