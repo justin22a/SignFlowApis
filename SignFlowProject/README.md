@@ -12,6 +12,7 @@ The structure is mostly divided into /app and /tests. /app will have a few direc
 
 ## Usage
 - To install required packages (in SignFlowProject): `pip install -r requirements.txt`
-- To start virtual env (in root): `source venv/bin/activate`
+- To start virtual env (in root): `source ~/SignFlowApis/venv/.venv/bin/activate
+- Copy .env.example to .env: `cp .env.example .env` and fill in your GPT key
 - To hit local endpoints: http://127.0.0.1:5000/
 - To create mock DB run: `Test_anything.py`
