@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from eth_account import Account
 
 from SignFlowProject.app.mock_database.mock_database import check_auth, insert_auth, delete_auth_by_username, \
     read_auth_by_username
