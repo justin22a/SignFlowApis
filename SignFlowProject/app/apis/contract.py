@@ -1,8 +1,11 @@
+import base64
+
 import openai
 from flask import Blueprint, jsonify, request, send_from_directory
 from fpdf import FPDF
 import os
 import openai
+import fitz  # PyMuPDF
 
 # Creating a blueprint for authentication
 contract = Blueprint('contract', __name__)
@@ -97,3 +100,72 @@ def generate_pdf():
 def serve_pdf(filename):
     PDF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated_pdfs")
     return send_from_directory(PDF_DIR, filename)
+
+@contract.route('/extract_text', methods=['POST'])
+def extract_text_from_pdf():
+    """API route to extract text from a full PDF file."""
+    data = request.json
+    pdf_base64 = data.get("pdfFile")
+
+    if not pdf_base64:
+        return jsonify({"error": "No PDF file provided"}), 400
+
+    try:
+        # Decode the base64-encoded PDF and write it to a temporary file
+        pdf_data = pdf_base64.split(',')[1]  # Remove the "data:application/pdf;base64," prefix
+        pdf_bytes = base64.b64decode(pdf_data)  # Decode the base64 string
+
+        pdf_path = "temp_uploaded.pdf"
+        with open(pdf_path, "wb") as f:
+            f.write(pdf_bytes)
+
+        # Extract text from the PDF
+        full_text = extract_text(pdf_path)
+
+        # Clean up the temporary file
+        os.remove(pdf_path)
+
+        return jsonify({"fullText": full_text}), 200
+
+    except Exception as e:
+        print(f"Error extracting text from PDF: {e}")
+        return jsonify({"error": "Failed to extract text from the PDF"}), 500
+
+def extract_text(pdf_path):
+    """Helper function to extract text from a PDF using PyMuPDF."""
+    doc = fitz.open(pdf_path)
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text.strip()
+
+@contract.route('/analyze_contract', methods=['POST'])
+def analyze_contract():
+    """API route to analyze the extracted contract text for missing clauses."""
+    data = request.json
+    full_text = data.get("fullText", "").strip()
+    signer_situation = data.get("signerSituation", "").strip()
+
+    if not full_text:
+        return jsonify({"error": "No contract text provided"}), 400
+
+    if not signer_situation:
+        return jsonify({"error": "No signer situation provided"}), 400
+
+    try:
+        # Analyze the contract with GPT-4o
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a legal assistant specializing in analyzing contracts. Help identify any missing clauses based on the provided situation."},
+                {"role": "user", "content": f"This is the contract: {full_text}\n\nBased on the situation: {signer_situation}, are there any important clauses missing? If so, list them and explain why they are needed in plain language."}
+            ]
+        )
+
+        ai_analysis = response.choices[0].message.content
+
+        return jsonify({"analysis": ai_analysis}), 200
+
+    except Exception as e:
+        print(f"Error analyzing contract: {e}")
+        return jsonify({"error": "Failed to analyze the contract"}), 500
